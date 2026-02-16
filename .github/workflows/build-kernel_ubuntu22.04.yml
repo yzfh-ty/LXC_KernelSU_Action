@@ -180,29 +180,24 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$GITHUB_WORKSPACE/kernel_workspace/google_gcc-4.9/aarch64-linux-android-4.9/bin:$GITHUB_WORKSPACE/kernel_workspace/google_gcc-4.9/arm-linux-androideabi-4.9/bin:$PATH
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo yzfh-ty | tr A-Z a-z)
-        if [ ! -z  ] && [ ! -z  ]; then
-          export KSU_EXPECTED_SIZE=
-          export KSU_EXPECTED_HASH=
-        fi
         
         # -------------------- 第 1 步: 生成基础 .config 文件 --------------------
-        # 注意：这里我们使用正确的 waipio_GKI.config，而不是不存在的 liuqin_config
         echo "Run make vendor/waipio_GKI.config"
         make -j$(nproc --all) CC=clang O=out ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- LD=ld.lld CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- vendor/waipio_GKI.config
         
-        # -------------------- 第 2 步 (核心修改): 注入缺失的配置并更新 --------------------
+        # -------------------- 第 2 步 (核心修正): 注入配置并以正确的环境更新 --------------------
         echo ""
-        echo "Add CONFIG_ANDROID_VENDOR_HOOK=y to .config"
-        # 向 out 目录下的 .config 文件追加我们需要的配置
+        echo "Adding missing CONFIG_ANDROID_VENDOR_HOOK=y to out/.config"
         echo "CONFIG_ANDROID_VENDOR_HOOK=y" >> $GITHUB_WORKSPACE/kernel_workspace/android-kernel/out/.config
         
-        echo "Run make olddefconfig to update config"
-        # 运行 olddefconfig 来让内核构建系统正确地应用这个新配置
-        make -j$(nproc --all) -C $GITHUB_WORKSPACE/kernel_workspace/android-kernel O=out olddefconfig
+        echo "Running make olddefconfig to apply changes and resolve dependencies"
+        # 关键修正：在和主编译命令完全一样的环境下运行 olddefconfig，
+        # 确保它为 arm64 架构非交互式地更新配置。
+        make -j$(nproc --all) CC=clang O=out ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- LD=ld.lld CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- olddefconfig
         echo ""
 
-        # -------------------- 第 3 步: 以和之前相同的方式开始完整编译 --------------------
-        echo "Run make"
+        # -------------------- 第 3 步: 开始完整编译 --------------------
+        echo "Running final make"
         if [ false  = true ]; then
             make -j$(nproc --all) CC="ccache clang" O=out ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- LD=ld.lld CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- 
         else
